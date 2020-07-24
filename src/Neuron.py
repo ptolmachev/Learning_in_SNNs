@@ -17,10 +17,10 @@ class Neuron:
 
 
 class IzhikevichNeuron(Neuron):
-    def __init__(self, a=0.2, b=0.2, d = 0.25, I = 4.0, thresh_v = 20, reset_v=-65, dt=0.1):
+    def __init__(self, a=0.02, b=0.2, d = 8, I = 4.0, thresh_v = 30, reset_v=-65, dt=0.1):
         super().__init__(type="IzhikevichNeuron", dt = dt)
         self.v = -55 + 20 * np.random.randn()
-        self.I = 2.8 + 1 * np.random.randn()
+        self.I = 2.5 + 1 * np.random.randn()
         self.u = 1 + np.random.randn()
         self.a = a
         self.b = b
@@ -52,7 +52,7 @@ class LIFNeuron(Neuron):
         super().__init__(type="LifNeuron", dt = dt)
         self.v = -55 + 20 * np.random.randn()
         self.a = a
-        self.I = 0.5 * np.random.randn()
+        self.I = 0.1 + 0.1 * np.random.randn()
         self.thresh_v = thresh_v
         self.reset_v = reset_v
 

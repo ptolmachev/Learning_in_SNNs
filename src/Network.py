@@ -1,37 +1,53 @@
 import numpy as np
+
+from src.Connections import connect_reservoir
 from src.Neuron import *
 from src.Monitors import *
+from src.SpikeTrain import UniformSpikeTrain
 from src.Synapse import SynapseSTDP
-from matplotlib import pyplot as plt
+from src.plotting_functions import *
+
 
 class Network():
     def __init__(self, dt, Neurons, Synapses, variables_to_monitor):
-        # check if they have consistent dimensions
+        # TODO: check if Neurons and Synapses have consistent dimensions
+
         self.N = len(Neurons) # number of neurons
         self.neurons = Neurons # a list of neurons
         self.synapses = Synapses # a dictionary with tuples (i, j) as keys and synapses as entries. i -> j
 
-        self.dt = dt
         # set the same dt for every neuron and synapse
+        self.dt = dt
         self.set_dt()
 
         self.spikemon = SpikeMonitor(self.neurons)
         self.statemon = StateMonitor(self.neurons, variables_to_monitor = variables_to_monitor)
         self.synapmon = SynapseMonitor(self.synapses)
-        self.t = 0
 
+        self.enforced_neurons = []
+        self.plastic_synapses = []
+        self.t = 0
 
     def set_dt(self):
         for i in range(len(self.neurons)):
             self.neurons[i].dt = self.dt
-
         for key in list(self.synapses.keys()):
             self.synapses[key].dt = self.dt
         return None
 
     def update_neurons(self):
-        for nrn in self.neurons:
-            nrn.step()
+        for i, nrn in enumerate(self.neurons):
+            #branch for Reservoir neurons
+            if not (i in self.enforced_neurons) :
+                nrn.step()
+            #branch for input and output neurons
+            else:
+                if i in self.enforced_neurons:
+                    # determine if the network is at the time at which there should be a spike in any of the enforced neurons
+                    ind = self.enforced_neurons.index(i)
+                    t_diffs = np.abs(self.enforced_spike_trains[ind] - self.t)
+                    spike_now = np.any(t_diffs <= 0.5 * self.dt)
+                    self.neurons[i].spike_occurred = spike_now
         return None
 
     def update_spikemonitor(self):
@@ -53,22 +69,39 @@ class Network():
     def update_synapses(self):
         # for each synapse in the dictionary
         for key in list(self.synapses.keys()):
-            pre_ind = key[0]
-            post_ind = key[1]
+            pre_ind, post_ind = key
             pre_nrn = self.neurons[pre_ind]
             post_nrn = self.neurons[post_ind]
-            self.synapses[key].update(pre_nrn, post_nrn)
+            # hte effect of spiking in the presynaptic neuron is propagated to the postsynaptic neuron
+            self.synapses[key].propagate(pre_nrn, post_nrn)
+
+            if key in self.plastic_synapses:
+                self.synapses[key].learn(pre_nrn, post_nrn)
         return None
 
+    def enforce_neurons(self, indices, spike_trains):
+        '''
+        Freeze the evolution of the specified neurons and provide the pattern according to which theses neurons should spike
+        :param indices: the indices of the neurons whose evolution will be frozen and the spiking output will be replaced
+        :param spike_trains: list of numpy arrays with the specified spike-timing. The length of the list = length indices
+        '''
+        self.enforced_neurons = indices
+        self.enforced_spike_trains = spike_trains
+        for i in self.enforced_neurons:
+            self.neurons[i].v = -np.inf # precautionary measure
+        return None
+
+    def set_plastic_synapses(self, list_of_tuples):
+        s_keys = list(self.synapses.keys())
+        for s in list_of_tuples:
+            if s in s_keys:
+                self.plastic_synapses.append(s)
+        return None
 
     def step(self):
-        # update dt
         self.t += self.dt
-        # update neurons
         self.update_neurons()
-        # update synapses
         self.update_synapses()
-        # update spikemonitor
         self.update_spikemonitor()
         self.update_statemonitor()
         self.update_synapmonitor()
@@ -80,44 +113,7 @@ class Network():
         return None
 
 
-if __name__ == '__main__':
-    N = 16
-    dt = 0.1
-    T = 5000
-    T_steps = int(T / dt)
-    variables_to_monitor = ['v']
 
-    neurons = [LIFNeuron() for i in range(N)]
-
-    synapses = dict()
-    for i in range(N):
-        for j in range(N):
-            if np.random.rand() <= 0.25 and (i != j):
-                synapses[i,j] = SynapseSTDP(pre=i, post=j)
-
-    net = Network(dt, neurons, synapses, variables_to_monitor)
-    net.run(T_steps)
-
-    v = net.statemon.v
-    t_range = net.statemon.t_range[1:]
-    fig1 = plt.figure()
-    plt.plot(t_range, v)
-    plt.show()
-
-    spikes = net.spikemon.spike_times
-    colors = ['r', 'g', 'b', 'm', 'k']
-    fig2 = plt.figure()
-    for i in range(N):
-        plt.eventplot(spikes[i], lineoffsets=i, colors=colors[i % len(colors)])
-    plt.ylim([-1, N])
-    plt.show()
-
-    fig3 = plt.figure()
-    syn_weights = net.synapmon.syn_weights
-    t_range = net.statemon.t_range[1:]
-    for key in list(syn_weights.keys()):
-        plt.plot(t_range, syn_weights[key])
-    plt.show()
 
 
 
