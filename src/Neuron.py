@@ -8,6 +8,8 @@ class Neuron:
         self.dt = dt
         self.v = 0
         self.spike_occurred = False # a variable which is only True when the spike (reset) has happened
+        self.incoming_synapses = []
+        self.outcoming_synapses = []
 
     def rhs(self):
         return None

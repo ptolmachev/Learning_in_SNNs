@@ -1,12 +1,12 @@
 from matplotlib import pyplot as plt
 
-def plot_synpatic_evolution(net):
+def plot_synpatic_evolution(net, synapses):
     fig = plt.figure()
     syn_weights = net.synapmon.syn_weights
     t_range = net.statemon.t_range[1:]
-    for key in list(syn_weights.keys()):
-        if key in net.plastic_synapses:
-            plt.plot(t_range, syn_weights[key])
+    for key in synapses:
+        # if key in net.plastic_synapses:
+        plt.plot(t_range, syn_weights[key])
     return fig
 
 def plot_spikes(net):

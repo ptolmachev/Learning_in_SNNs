@@ -4,7 +4,7 @@ from src.Connections import connect_reservoir
 from src.Neuron import *
 from src.Monitors import *
 from src.SpikeTrain import UniformSpikeTrain
-from src.Synapse import SynapseSTDP
+from src.Synapse import Synapse
 from src.plotting_functions import *
 
 
@@ -40,7 +40,7 @@ class Network():
             #branch for Reservoir neurons
             if not (i in self.enforced_neurons) :
                 nrn.step()
-            #branch for input and output neurons
+            #branch for input  and output neurons
             else:
                 if i in self.enforced_neurons:
                     # determine if the network is at the time at which there should be a spike in any of the enforced neurons
@@ -48,6 +48,8 @@ class Network():
                     t_diffs = np.abs(self.enforced_spike_trains[ind] - self.t)
                     spike_now = np.any(t_diffs <= 0.5 * self.dt)
                     self.neurons[i].spike_occurred = spike_now
+                    self.neurons[i].v = self.neurons[i].reset_v # because of spiking in the presynaptic neurons,
+                    # the "fixed neuron" accumulates some change in voltage, so it has to be brought back
         return None
 
     def update_spikemonitor(self):
@@ -88,10 +90,11 @@ class Network():
         self.enforced_neurons = indices
         self.enforced_spike_trains = spike_trains
         for i in self.enforced_neurons:
-            self.neurons[i].v = -np.inf # precautionary measure
+            self.neurons[i].v = self.neurons[i].reset_v  # precautionary measure
         return None
 
     def set_plastic_synapses(self, list_of_tuples):
+        self.plastic_synapses = []
         s_keys = list(self.synapses.keys())
         for s in list_of_tuples:
             if s in s_keys:
@@ -100,8 +103,8 @@ class Network():
 
     def step(self):
         self.t += self.dt
-        self.update_neurons()
         self.update_synapses()
+        self.update_neurons()
         self.update_spikemonitor()
         self.update_statemonitor()
         self.update_synapmonitor()

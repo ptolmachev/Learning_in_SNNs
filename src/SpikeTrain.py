@@ -17,7 +17,8 @@ class PoissonSpikeTrain(SpikeTrainGenerator):
             u = np.random.rand()
             delta_t = -(np.log(1 - u)) / (r / 1000)
             t = spike_train[-1] + delta_t
-            spike_train.append(t)
+            if t < self.T_range:
+                spike_train.append(t)
         return np.array(spike_train[1:]) #discregard the first 0 fictive spike
 
 class UniformSpikeTrain(SpikeTrainGenerator):
